@@ -1,0 +1,74 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{a4wide,parskip,underscore,xspace}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\newcommand*{\code}[1]{\texttt{#1}}
+\newcommand*{\TODO}{\textbf{TODO}\xspace}
+
+\title{Digital Signal Processing - Assignment 4a}
+\author{Joshua Perrett (jdp63)}
+\date{January 2023}
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+
+For the mini-project, I opted for the first option: ``HDMI video cable eavesdropping''. The steps provided are fairly clear, and so I will describe my results more or less in the order that corresponds to the instructions given.
+
+\section*{Manual Adjustment of Parameters}
+
+\subsection*{Resampling}
+
+I initially tried performing perfect sinc interpolation, which worked fine for a test input, but took far too long on the IQ data (even for just a couple of frames).
+
+% TODO show perfect sinc interpolation code
+
+After looking for more computationally-feasible approaches to resampling, I found a resource that implied that changing ``the sampling rate by a rational factor'' required interpolating and then decimating \cite{dspguru-resampling}. If the rational factor has a very large numerator, this process can require a great deal of memory. To mitigate this, the process can be divided into multiple stages, by splitting the factor into a series of smaller factors with smaller numerators and denominators \cite{dspguru-resampling}.
+
+\textbf{TODO} mention:
+\begin{enumerate}
+\item you tried
+\item cite the source that mentioned you could potentially split the resampling into (potentially multiple) upsampling and downsampling stages
+\item mention that the DSP.jl library appears to do just this
+\item \textbf{TODO} if you get around to it, show and compare different ways of resampling (linear, sinc, kaiser)
+\end{enumerate}
+
+\subsection*{Parameter Values}
+
+Adjusting by eye, I found that $f_p$ was +0.1\% over the expected 25.175 MHz. By vertically joining two separate frames that were several frames apart, I updated my estimate to +0.997\%.
+
+Adjusting by \TODO discuss alignment (achieved by discarding samples).
+
+\textbf{TODO} show code, show figure
+
+\subsection*{Result}
+
+\section*{Automation Adjustment of Parameters}
+
+Mention autocorrelation, how that has worked for you, why it worked.
+Talk about how you found the range of values for $f_s / f_h$ and $f_s / f_v$.
+
+\textbf{TODO} Autocorrelation of complex values? Cross correlation between frames?
+
+\section*{TODO}
+
+\section*{Conclusion}
+
+\newpage
+\appendix
+% TODO appendices if needed
+
+\newpage
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}
