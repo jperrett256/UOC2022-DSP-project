@@ -13,6 +13,13 @@ begin
 end
 # using DSP, WAV, FFTW, Plots, Colors, ImageIO, FileIO, ImageShow;
 
+# ╔═╡ f59ab7bf-80eb-4697-97b0-735c4b947817
+md"
+# DSP Mini-Project
+
+Name: Joshua Perrett (jdp63)
+"
+
 # ╔═╡ 76dc0cad-7471-4d12-b20b-55af2a1e2782
 begin
 	dbg = println; # DEBUG
@@ -488,6 +495,78 @@ let
 	plot_image(test_img; aspectratio=fr/fp);
 
 	# NOTE after averaging, the text in the console is much clearer but there is still this weird vertical striping going on
+end
+
+# ╔═╡ 554d4b4c-d7c6-415c-9eda-57d6c9641cb1
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+
+	num_samples = length(iq_samples)
+	num_frames = fv * num_samples / fs;
+
+	# num_frames = 8;
+	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
+	z = iq_samples;#[1:num_samples]
+
+	fr = 2 * fp;
+
+	new_num_samples = floor(Int, fr / fs * num_samples);
+	z_resampled = resample(z, fr/fs)[1:new_num_samples]; # TODO replace
+	
+	samples_per_line = round(Int, fr/fh);
+	samples_per_pixel = round(Int, fr/fp);
+	samples_per_frame = round(Int, fr/fv);
+	
+	# TODO start_idx inference??
+	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
+	z_adjusted = z_resampled[start_idx:end];
+	num_frames_adjusted = fv * length(z_adjusted) / fr;
+
+	first_frame = z_adjusted[1:samples_per_frame];
+
+	fu = 10000; # TODO I think I'm actually increasing the rate of periodic phase change, but it kinda makes it look like rgb pixels?
+	dbg(fh);
+	phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame))); # divide by fr or no?? should there be a negative sign?
+
+	# fu = fh / 90; # TODO what should this be
+	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
+
+	first_frame = first_frame .* phasor;
+	# average_img = zeros(samples_per_frame);
+	# for i=1:floor(Int,num_frames_adjusted)
+	# 	average_img = average_img .+ abs.(z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)]);
+	# end
+	
+	complex_img = reshape(first_frame, (samples_per_line, :))';
+	# plot_image(abs.(complex_img); aspectratio=fr/fp);
+
+	# RED-GREEN version
+	# r = real.(complex_img);
+	# g = imag.(complex_img);
+	# @assert size(r) == size(g);
+	
+	# # normalise
+	# r = r / findmax(r)[1];
+	# g = g / findmax(g)[1];
+
+	# imresize(colorview(RGB, r, g, zeros(size(r))), (yt, xt));
+
+	# HSV version
+	h = rad2deg.(angle.(complex_img));
+	v = abs.(complex_img);
+	v = v / findmax(v)[1];
+
+	imresize(colorview(RGB, convert(Matrix{RGB{Float64}}, HSV.(h, ones(size(h)), v))), (yt, xt));
+
+	# # alternative HSV version
+	# hsv_img = ones((3, size(h)[1], size(h)[2]));
+	# hsv_img[1, :, :] .= h; hsv_img[3, :, :] .= v;
+	# hsv_img = reinterpret(HSV{Float64}, hsv_img);
+	# rgb_img = convert(Array{RGB{Float64}}, hsv_img);
+
+	# imresize(reshape(rgb_img, size(h)), (yt, xt));
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2046,6 +2125,7 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
+# ╟─f59ab7bf-80eb-4697-97b0-735c4b947817
 # ╠═08dde2e0-807d-11ed-17f3-03aa264bac69
 # ╠═76dc0cad-7471-4d12-b20b-55af2a1e2782
 # ╠═d36924f7-9d36-4cb9-802a-2d45562d891e
@@ -2063,5 +2143,6 @@ version = "1.4.1+0"
 # ╠═1456dd76-c5e9-488e-aa31-c5dce4e22287
 # ╠═5da582f8-b6b5-48dc-b778-083ab83d38f2
 # ╠═e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
+# ╠═554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
