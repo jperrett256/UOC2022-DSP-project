@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.14
+# v0.19.19
 
 using Markdown
 using InteractiveUtils
@@ -203,6 +203,7 @@ begin
 		num_frames = 2;
 		num_frames_total = fv_std * length(z) / fs; # estimated
 		num_samples = round(Int, length(z) * num_frames / num_frames_total);
+		# TODO just use est_samples_per_frame below
 
 		z = z[1:num_samples];
 		
@@ -316,9 +317,13 @@ end
 
 # ╔═╡ 8a5628a5-8820-47fa-a9b7-f0bf1d9fdf8b
 begin
-	# xcorr_xs_fh, xcorr_fh = 
-	let # TODO try xcorr_fv as well
+	xcorr_xs_fv, xcorr_fv = 
+	let # TODO try xcorr_fh as well?
 		z = iq_samples;
+		
+		est_samples_per_frame = round(Int, fs/fv_std);
+		max_samples_per_frame = ceil(Int, fs/fv_high);
+
 		
 		# upper and lower bounds
 		fp_low = floor(Int, fp_std * 0.95);
@@ -329,19 +334,87 @@ begin
 		frames_min = fv_low * length(z) / fs;
 		rows_min = fh_low * length(z) / fs;
 		
-		xs_fh = floor(Int, rows_min * fs/fh_high):(length(z) - 1);
-		xs_fv = floor(Int, frames_min * fs/fv_high):ceil(Int, frames_min * fs/fv_low);
+		# xs_fh = floor(Int, rows_min * fs/fh_high):(length(z) - 1);
+		xs_fv = (length(z) - max_samples_per_frame):(length(z) - 1);
+		# xs_fv_old = floor(Int, fs/fv_high):ceil(Int, fs/fv_low);
 
-		dbg(xs_fh);
-		dbg(length(z));
+		# xs_fh_old = floor(Int, fs/fh_high):ceil(Int, fs/fh_low);
+		
+		# dbg(xs_fh);
+		# dbg(xs_fh_old);
+		# dbg_len(xs_fh);
+		# dbg_len(xs_fv_old);
+		# dbg_len(xs_fv);
 
-		# xcorr_fh = autocor(abs.(z), xs_fh); # TODO make faster
+		xcorr_fv = autocor(abs.(z), xs_fv); # TODO make faster
+
+		xs_fv, xcorr_fv;
 	end;
+end
+
+# ╔═╡ 52406281-aad3-47e1-8231-22c58582b433
+let
+	z = iq_samples;
+
+	fs_over_fv_est = xs_fv[findmax(autocor_fv)[2]];
+	fs_over_fv_low = fs_over_fv_est - 1;
+	fs_over_fv_high = fs_over_fv_est + 1;
+
+	fv_est = fs/fs_over_fv_est;
+
+	est_samples_per_frame = round(Int, fs_over_fv_est);
+	min_num_frames = floor(Int, length(z) / est_samples_per_frame);
+
+	xs2_fv = (fs_over_fv_low * min_num_frames):(fs_over_fv_high * min_num_frames);
+	xcorr_fv = autocor(abs.(z), xs2_fv);
+
+	fv_est2 = fs * min_num_frames / xs2_fv[findmax(xcorr_fv)[2]];
+
+	println("First automatic estimate: ", fv_est)
+	println("Second automatic estimate: ", fv_est2);
+	println("Manually tuned estimate: ", fv_ref);
+	
+	plot(xs2_fv, xcorr_fv; label="autocorrelation (fv)", xticks=([fs_over_fv_est * min_num_frames, fs/fv_ref * min_num_frames], ["previous estimate", "hand tuned"]), dpi=300);
+
+	# TODO try xcorr_fh as well
+end
+
+# ╔═╡ 1456dd76-c5e9-488e-aa31-c5dce4e22287
+let
+	z = iq_samples;
+
+	fs_over_fh_est = xs_fh[findmax(autocor_fh)[2]];
+	fs_over_fh_low = fs_over_fh_est - 0.5;
+	fs_over_fh_high = fs_over_fh_est + 0.5;
+
+	fh_est = fs/fs_over_fh_est;
+
+	est_samples_per_line = round(Int, fs_over_fh_est);
+	min_num_lines = floor(Int, length(z) / est_samples_per_line);
+
+	# NOTE the initial estimate is so far off that using min_num_lines (=31496)
+	# doesn't paint a useful picture.
+	
+	# xcorr_factor = min_num_lines;
+	xcorr_factor = 1000;
+
+	dbg(xcorr_factor * est_samples_per_line);
+
+	xs2_fh = floor(Int, fs_over_fh_low * xcorr_factor):min(
+		ceil(Int, fs_over_fh_high * xcorr_factor), length(z) - 1);
+	xcorr_fh = autocor(abs.(z), xs2_fh);
+	fh_est2 = fs * xcorr_factor / xs2_fh[findmax(xcorr_fh)[2]];
+
+	println("First automatic estimate: ", fh_est)
+	println("Second automatic estimate: ", fh_est2);
+	println("Manually tuned estimate: ", fh_ref);
+	
+	plot(xs2_fh, xcorr_fh; label="autocorrelation (fv)", xticks=([fs_over_fh_est * xcorr_factor, fs/fh_ref * xcorr_factor], ["previous estimate", "hand tuned"]), dpi=300);
 end
 
 # ╔═╡ 1e98597d-ff0c-4d1a-98c5-8ee338332be7
 let
-	plot(xs_fh, xcorr_fh; xticks=([rows_min*fs/fh_ref, rows_min*fs/fh_std], ["tuned", "untuned"]), xrotation=90, tickfontsize=4, dpi=300, label="autocorrelation (fh)");
+	plot(xcorr_xs_fv, xcorr_fv; label="autocorrelation (fh)");#xticks=([fs/fh_ref, fs/fh_std], ["tuned", "untuned"]), xrotation=90, tickfontsize=4, dpi=300);
 end
 
 # ╔═╡ 5da582f8-b6b5-48dc-b778-083ab83d38f2
@@ -411,6 +484,9 @@ let
 	plot_image(test_img; aspectratio=fr/fp);
 end
 
+# ╔═╡ e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
+
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -440,7 +516,7 @@ StatsBase = "~0.33.21"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.8.2"
+julia_version = "1.8.4"
 manifest_format = "2.0"
 project_hash = "27d54a621f649925247e91bc3524c5beeaf2ef80"
 
@@ -581,7 +657,7 @@ version = "4.5.0"
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "0.5.2+0"
+version = "1.0.1+0"
 
 [[deps.ComputationalResources]]
 git-tree-sha1 = "52cb3ec90e8a8bea0e62e275ba577ad0f74821f7"
@@ -1981,7 +2057,10 @@ version = "1.4.1+0"
 # ╠═221a1c69-70f4-484d-8d17-07b110cee94b
 # ╠═556902cb-cf1a-4c11-9541-4a0e7603b787
 # ╠═8a5628a5-8820-47fa-a9b7-f0bf1d9fdf8b
+# ╠═52406281-aad3-47e1-8231-22c58582b433
+# ╠═1456dd76-c5e9-488e-aa31-c5dce4e22287
 # ╠═1e98597d-ff0c-4d1a-98c5-8ee338332be7
 # ╠═5da582f8-b6b5-48dc-b778-083ab83d38f2
+# ╠═e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
