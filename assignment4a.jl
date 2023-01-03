@@ -315,106 +315,70 @@ let
 	# TODO after getting a high-res plot, maybe just focus on getting the minimum done and dusted.
 end
 
-# ╔═╡ 8a5628a5-8820-47fa-a9b7-f0bf1d9fdf8b
-begin
-	xcorr_xs_fv, xcorr_fv = 
-	let # TODO try xcorr_fh as well?
-		z = iq_samples;
-		
-		est_samples_per_frame = round(Int, fs/fv_std);
-		max_samples_per_frame = ceil(Int, fs/fv_high);
-
-		
-		# upper and lower bounds
-		fp_low = floor(Int, fp_std * 0.95);
-		fh_low, fv_low = get_freqs(fp_low);
-		fp_high = ceil(Int, fp_std * 1.05);
-		fh_high, fv_high = get_freqs(fp_high);
-	
-		frames_min = fv_low * length(z) / fs;
-		rows_min = fh_low * length(z) / fs;
-		
-		# xs_fh = floor(Int, rows_min * fs/fh_high):(length(z) - 1);
-		xs_fv = (length(z) - max_samples_per_frame):(length(z) - 1);
-		# xs_fv_old = floor(Int, fs/fv_high):ceil(Int, fs/fv_low);
-
-		# xs_fh_old = floor(Int, fs/fh_high):ceil(Int, fs/fh_low);
-		
-		# dbg(xs_fh);
-		# dbg(xs_fh_old);
-		# dbg_len(xs_fh);
-		# dbg_len(xs_fv_old);
-		# dbg_len(xs_fv);
-
-		xcorr_fv = autocor(abs.(z), xs_fv); # TODO make faster
-
-		xs_fv, xcorr_fv;
-	end;
-end
-
 # ╔═╡ 52406281-aad3-47e1-8231-22c58582b433
-let
-	z = iq_samples;
-
-	fs_over_fv_est = xs_fv[findmax(autocor_fv)[2]];
-	fs_over_fv_low = fs_over_fv_est - 1;
-	fs_over_fv_high = fs_over_fv_est + 1;
-
-	fv_est = fs/fs_over_fv_est;
-
-	est_samples_per_frame = round(Int, fs_over_fv_est);
-	min_num_frames = floor(Int, length(z) / est_samples_per_frame);
-
-	xs2_fv = (fs_over_fv_low * min_num_frames):(fs_over_fv_high * min_num_frames);
-	xcorr_fv = autocor(abs.(z), xs2_fv);
-
-	fv_est2 = fs * min_num_frames / xs2_fv[findmax(xcorr_fv)[2]];
-
-	println("First automatic estimate: ", fv_est)
-	println("Second automatic estimate: ", fv_est2);
-	println("Manually tuned estimate: ", fv_ref);
+begin
+	xs2_fv, xcorr_fv, xcorr_fv_factor, fv_est, fv_est2 = let
+		z = iq_samples;
 	
-	plot(xs2_fv, xcorr_fv; label="autocorrelation (fv)", xticks=([fs_over_fv_est * min_num_frames, fs/fv_ref * min_num_frames], ["previous estimate", "hand tuned"]), dpi=300);
+		fs_over_fv_est = xs_fv[findmax(autocor_fv)[2]];
+		fs_over_fv_low = fs_over_fv_est - 1;
+		fs_over_fv_high = fs_over_fv_est + 1;
+	
+		fv_est = fs/fs_over_fv_est;
+	
+		est_samples_per_frame = round(Int, fs_over_fv_est);
+		min_num_frames = floor(Int, length(z) / est_samples_per_frame);
+	
+		xs2_fv = (fs_over_fv_low * min_num_frames):(fs_over_fv_high * min_num_frames);
+		xcorr_fv = autocor(abs.(z), xs2_fv);
+	
+		fv_est2 = fs * min_num_frames / xs2_fv[findmax(xcorr_fv)[2]];
+	
+		println("First automatic estimate: ", fv_est)
+		println("Second automatic estimate: ", fv_est2);
+		println("Manually tuned estimate: ", fv_ref);
+		
+		xs2_fv, xcorr_fv, min_num_frames, fv_est, fv_est2;
+	end
 
-	# TODO try xcorr_fh as well
+	plot(xs2_fv, xcorr_fv; label="autocorrelation (fv)", xticks=([fs/fv_est * xcorr_fv_factor, fs/fv_ref * xcorr_fv_factor], ["previous estimate", "hand tuned"]), dpi=300);
 end
 
 # ╔═╡ 1456dd76-c5e9-488e-aa31-c5dce4e22287
-let
-	z = iq_samples;
-
-	fs_over_fh_est = xs_fh[findmax(autocor_fh)[2]];
-	fs_over_fh_low = fs_over_fh_est - 0.5;
-	fs_over_fh_high = fs_over_fh_est + 0.5;
-
-	fh_est = fs/fs_over_fh_est;
-
-	est_samples_per_line = round(Int, fs_over_fh_est);
-	min_num_lines = floor(Int, length(z) / est_samples_per_line);
-
-	# NOTE the initial estimate is so far off that using min_num_lines (=31496)
-	# doesn't paint a useful picture.
+begin
+	xs2_fh, xcorr_fh, xcorr_fh_factor, fh_est, fh_est2 = let
+		z = iq_samples;
 	
-	# xcorr_factor = min_num_lines;
-	xcorr_factor = 1000;
-
-	dbg(xcorr_factor * est_samples_per_line);
-
-	xs2_fh = floor(Int, fs_over_fh_low * xcorr_factor):min(
-		ceil(Int, fs_over_fh_high * xcorr_factor), length(z) - 1);
-	xcorr_fh = autocor(abs.(z), xs2_fh);
-	fh_est2 = fs * xcorr_factor / xs2_fh[findmax(xcorr_fh)[2]];
-
-	println("First automatic estimate: ", fh_est)
-	println("Second automatic estimate: ", fh_est2);
-	println("Manually tuned estimate: ", fh_ref);
+		fs_over_fh_est = xs_fh[findmax(autocor_fh)[2]];
+		fs_over_fh_low = fs_over_fh_est - 0.5;
+		fs_over_fh_high = fs_over_fh_est + 0.5;
 	
-	plot(xs2_fh, xcorr_fh; label="autocorrelation (fv)", xticks=([fs_over_fh_est * xcorr_factor, fs/fh_ref * xcorr_factor], ["previous estimate", "hand tuned"]), dpi=300);
-end
+		fh_est = fs/fs_over_fh_est;
+	
+		est_samples_per_line = round(Int, fs_over_fh_est);
+		min_num_lines = floor(Int, length(z) / est_samples_per_line);
+	
+		# NOTE the initial estimate is so far off that using min_num_lines (=31496)
+		# doesn't paint a useful picture.
+		
+		# xcorr_factor = min_num_lines;
+		xcorr_factor = 1000;
+	
+		dbg(xcorr_factor * est_samples_per_line);
+	
+		xs2_fh = floor(Int, fs_over_fh_low * xcorr_factor):min(
+			ceil(Int, fs_over_fh_high * xcorr_factor), length(z) - 1);
+		xcorr_fh = autocor(abs.(z), xs2_fh);
+		fh_est2 = fs * xcorr_factor / xs2_fh[findmax(xcorr_fh)[2]];
+	
+		println("First automatic estimate: ", fh_est)
+		println("Second automatic estimate: ", fh_est2);
+		println("Manually tuned estimate: ", fh_ref);
+		
+		xs2_fh, xcorr_fh, xcorr_factor, fh_est, fh_est2;
+	end
 
-# ╔═╡ 1e98597d-ff0c-4d1a-98c5-8ee338332be7
-let
-	plot(xcorr_xs_fv, xcorr_fv; label="autocorrelation (fh)");#xticks=([fs/fh_ref, fs/fh_std], ["tuned", "untuned"]), xrotation=90, tickfontsize=4, dpi=300);
+	plot(xs2_fh, xcorr_fh; label="autocorrelation (fv)", xticks=([fs/fh_est * xcorr_fh_factor, fs/fh_ref * xcorr_fh_factor], ["previous estimate", "hand tuned"]), dpi=300);
 end
 
 # ╔═╡ 5da582f8-b6b5-48dc-b778-083ab83d38f2
@@ -422,18 +386,20 @@ let
 	# TODO massively off
 	# fs_over_fh = xs_fh[findmax(autocor_fh)[2]]; # TODO try using fv estimate as well
 	# fh = fs / fs_over_fh;
+
+	# TODO still slightly off
+	# fh = fh_est2;
 	# fp = fh * xt;
 	# fv = fh / yt;
-	# dbg(fh_ref);
-	# dbg(fh);
 
 	# TODO appears one pixel off
-	fs_over_fv = xs_fv[findmax(autocor_fv)[2]];
-	fv = fs / fs_over_fv;
+	# fs_over_fv = xs_fv[findmax(autocor_fv)[2]];
+	# fv = fs/ fs_over_fv;
+
+	# perfect
+	fv = fv_est2;
 	fh = fv * yt;
 	fp = fh * xt;
-	dbg(fp);
-	dbg(fp_ref);
 
 	num_samples_total = length(iq_samples)
 	num_frames_total = fv * num_samples_total / fs;
@@ -453,10 +419,11 @@ let
 	
 	samples_per_line = round(Int, fr/fh);
 	samples_per_pixel = round(Int, fr/fp);
+	samples_per_frame = round(Int, fr/fv);
 
+	# TODO start_idx inference??
 	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
 	dbg(start_idx);
-	samples_per_frame = round(Int, fr/fv);
 	z_adjusted = z_resampled[start_idx:end];
 
 	# TODO display half of two frames joined in the middle (check vertical alignment)
@@ -485,7 +452,43 @@ let
 end
 
 # ╔═╡ e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
 
+	num_samples = length(iq_samples)
+	num_frames = fv * num_samples / fs;
+
+	# num_frames = 8;
+	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
+	z = iq_samples;#[1:num_samples]
+
+	fr = 2 * fp;
+
+	new_num_samples = floor(Int, fr / fs * num_samples);
+	z_resampled = resample(z, fr/fs)[1:new_num_samples]; # TODO replace
+	
+	samples_per_line = round(Int, fr/fh);
+	samples_per_pixel = round(Int, fr/fp);
+	samples_per_frame = round(Int, fr/fv);
+	
+	# TODO start_idx inference??
+	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
+	dbg(start_idx);
+	z_adjusted = z_resampled[start_idx:end];
+	num_frames_adjusted = fv * length(z_adjusted) / fr;
+	
+	average_img = zeros(samples_per_frame);
+	for i=1:floor(Int,num_frames_adjusted)
+		average_img = average_img .+ abs.(z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)]);
+	end
+	
+	test_img = reshape(average_img, (samples_per_line, :))';
+	plot_image(test_img; aspectratio=fr/fp);
+
+	# NOTE after averaging, the text in the console is much clearer but there is still this weird vertical striping going on
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2056,10 +2059,8 @@ version = "1.4.1+0"
 # ╠═79c135a5-2164-4fa8-bbdc-b4b0b36e99cb
 # ╠═221a1c69-70f4-484d-8d17-07b110cee94b
 # ╠═556902cb-cf1a-4c11-9541-4a0e7603b787
-# ╠═8a5628a5-8820-47fa-a9b7-f0bf1d9fdf8b
 # ╠═52406281-aad3-47e1-8231-22c58582b433
 # ╠═1456dd76-c5e9-488e-aa31-c5dce4e22287
-# ╠═1e98597d-ff0c-4d1a-98c5-8ee338332be7
 # ╠═5da582f8-b6b5-48dc-b778-083ab83d38f2
 # ╠═e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
 # ╟─00000000-0000-0000-0000-000000000001

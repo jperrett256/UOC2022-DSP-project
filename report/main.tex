@@ -32,21 +32,15 @@ I initially tried performing perfect sinc interpolation, which worked fine for a
 
 % TODO show perfect sinc interpolation code
 
-After looking for more computationally-feasible approaches to resampling, I found a resource that implied that changing ``the sampling rate by a rational factor'' required interpolating and then decimating \cite{dspguru-resampling}. If the rational factor has a very large numerator, this process can require a great deal of memory. To mitigate this, the process can be divided into multiple stages, by splitting the factor into a series of smaller factors with smaller numerators and denominators \cite{dspguru-resampling}.
+After looking for more computationally-feasible approaches to resampling, I found a resource that implied that changing ``the sampling rate by a rational factor'' required interpolating and then decimating \cite{dspguru-resampling}. If the rational factor has a very large numerator, this process can require a great deal of memory. To mitigate this, the process can be divided into multiple stages, by splitting the factor into a series of smaller factors with smaller numerators and denominators \cite{dspguru-resampling}. This seemed surprisingly complicated for such a straightforward operation, but it appears (from reading the source code) that the Julia DSP library uses this method exactly (\TODO cite source). \TODO details - \code{resample} function I think? By default uses a Kaiser filter
 
-\textbf{TODO} mention:
-\begin{enumerate}
-\item you tried
-\item cite the source that mentioned you could potentially split the resampling into (potentially multiple) upsampling and downsampling stages
-\item mention that the DSP.jl library appears to do just this
-\item \textbf{TODO} if you get around to it, show and compare different ways of resampling (linear, sinc, kaiser)
-\end{enumerate}
+\textbf{TODO} if you get around to it, show and compare different ways of resampling (linear, sinc, kaiser)
 
 \subsection*{Parameter Values}
 
-Adjusting by eye, I found that $f_p$ was +0.1\% over the expected 25.175 MHz. By vertically joining two separate frames that were several frames apart, I updated my estimate to +0.997\%.
+Adjusting by eye, I found that $f_p$ was +0.1\% over the expected 25.175 MHz. By vertically joining two separate frames that were several frames apart, I updated my estimate to +0.0997\%.
 
-Adjusting by \TODO discuss alignment (achieved by discarding samples).
+Adjusting by \TODO discuss alignment (achieved by discarding samples). probably don't need to discuss too much here
 
 \textbf{TODO} show code, show figure
 
@@ -55,11 +49,21 @@ Adjusting by \TODO discuss alignment (achieved by discarding samples).
 \section*{Automation Adjustment of Parameters}
 
 Mention autocorrelation, how that has worked for you, why it worked.
-Talk about how you found the range of values for $f_s / f_h$ and $f_s / f_v$.
+Talk about how you found the range of values for $f_s / f_h$ and $f_s / f_v$. Show graphs.
 
-\textbf{TODO} Autocorrelation of complex values? Cross correlation between frames?
+\textbf{TODO} Autocorrelation of complex values?
+
+Mention that the estimates for $f_s / f_h$ and $f_s / f_v$ are to the nearest integer, which limits the precision of your estimates for $f_h$ and $f_v$. The $f_v$ estimate is better than the $f_h$ estimate (explain, show images). A rough explanation for why is that $f_h$ is much larger than $f_v$, so $f_s / f_h$ is much smaller, and this means that you lose more precision by rounding to the nearest integer.
+
+Show various graphs
+
+Talk about crosscorrelation between frames, and note how autocorrelation is really just crosscorrelation of a vector with itself. Talk about how you had to use the previous estimate (by performing autocorrelation) to narrow down the range of where the last frame might be (because that of course also depends on $f_p$, which is precisely what we are trying to find out, and simply setting bounds as we did for the autocorrelation would result in far too large a range, i.e. too much computation).
+
+Show various graphs
 
 \section*{TODO}
+
+Show averaged picture
 
 \section*{Conclusion}
 
