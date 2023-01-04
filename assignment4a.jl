@@ -497,6 +497,33 @@ let
 	# NOTE after averaging, the text in the console is much clearer but there is still this weird vertical striping going on
 end
 
+# ╔═╡ 76131b38-6692-4793-939f-d6cc162c232d
+begin
+	function create_spectrogram(sample_data, sample_fs, win_size) 
+		win_size_half = convert(Integer, win_size/2);
+
+		# NOTE: discarding final partially-filled window
+		upper_index_range = win_size:win_size_half:length(sample_data)
+		num_windows = length(upper_index_range)
+		result = Matrix{Float64}(undef, win_size, num_windows);
+
+		win_fn = Windows.hamming(win_size);
+		for (i, upper_index) = enumerate(upper_index_range)
+			window_range = upper_index-win_size+1:upper_index;
+			dft_result = fftshift(fft(sample_data[window_range] .* win_fn));
+			result[:, i] = abs.(dft_result);
+		end
+		
+		wav_time_total = length(sample_data) / sample_fs;
+		xs = collect(1:num_windows) / num_windows * wav_time_total;
+
+		ys = collect(-win_size_half:win_size_half-1) / win_size_half * sample_fs / 2;
+		zs = result
+
+		return xs, ys, zs
+	end
+end
+
 # ╔═╡ 554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 let
 	fv = fv_est2;
@@ -513,7 +540,10 @@ let
 	fr = 2 * fp;
 
 	new_num_samples = floor(Int, fr / fs * num_samples);
-	z_resampled = resample(z, fr/fs)[1:new_num_samples]; # TODO replace
+	z_resampled = resample(z, fr/fs);
+	if (length(z_resampled) > new_num_samples)
+		z_resampled = z_resampled[1:new_num_samples]; # TODO replace
+	end
 	
 	samples_per_line = round(Int, fr/fh);
 	samples_per_pixel = round(Int, fr/fp);
@@ -526,18 +556,37 @@ let
 
 	first_frame = z_adjusted[1:samples_per_frame];
 
-	fu = 10000; # TODO I think I'm actually increasing the rate of periodic phase change, but it kinda makes it look like rgb pixels?
-	dbg(fh);
-	phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame))); # divide by fr or no?? should there be a negative sign?
+	fu = fp * 0.865;
+	phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
+	first_frame = first_frame .* phasor;
 
-	# fu = fh / 90; # TODO what should this be
+	# win_size = 1000;
+	# xs, ys, zs = create_spectrogram(first_frame, fr, win_size);
+
+	# # crop
+	# win_size_half = floor(Int, win_size / 2);
+	# crop_idx = round(Int, fp * 0.02 / (fr/2) * win_size_half);
+	# ys = ys[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx];
+	# zs = zs[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx, :];
+
+	# zs = 20 * log10.(zs / findmax(zs)[1]); # log scale
+	# heatmap(xs, ys, zs; xlabel="time [s]", ylabel="frequency [Hz]");
+	
+	# # fu = 10000; # TODO I think I'm actually increasing the rate of periodic phase change, but it kinda makes it look like rgb pixels?
+	# # dbg(fh);
+	# # phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame))); # divide by fr or no?? should there be a negative sign?
+
+	# # fu = fh / 90; # TODO what should this be
+	# # fu = 360;
+	# fc = MHz(425);
+	# fu = 40*fp - fc;
 	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
 
-	first_frame = first_frame .* phasor;
-	# average_img = zeros(samples_per_frame);
-	# for i=1:floor(Int,num_frames_adjusted)
-	# 	average_img = average_img .+ abs.(z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)]);
-	# end
+	# first_frame = first_frame .* phasor;
+	# # average_img = zeros(samples_per_frame);
+	# # for i=1:floor(Int,num_frames_adjusted)
+	# # 	average_img = average_img .+ abs.(z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)]);
+	# # end
 	
 	complex_img = reshape(first_frame, (samples_per_line, :))';
 	# plot_image(abs.(complex_img); aspectratio=fr/fp);
@@ -567,6 +616,16 @@ let
 	# rgb_img = convert(Array{RGB{Float64}}, hsv_img);
 
 	# imresize(reshape(rgb_img, size(h)), (yt, xt));
+end
+
+# ╔═╡ 61feb114-0754-4d6e-97e4-b331cbc618b7
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+
+	
+	dbg(fp);
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2143,6 +2202,8 @@ version = "1.4.1+0"
 # ╠═1456dd76-c5e9-488e-aa31-c5dce4e22287
 # ╠═5da582f8-b6b5-48dc-b778-083ab83d38f2
 # ╠═e2f4b0a1-fd3c-452f-af1f-1ef6a56f52ca
+# ╠═76131b38-6692-4793-939f-d6cc162c232d
 # ╠═554d4b4c-d7c6-415c-9eda-57d6c9641cb1
+# ╠═61feb114-0754-4d6e-97e4-b331cbc618b7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
