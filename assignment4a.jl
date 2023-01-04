@@ -522,13 +522,15 @@ begin
 
 		return xs, ys, zs
 	end
-end
+end;
 
 # ╔═╡ 554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 let
 	fv = fv_est2;
 	fh = fv * yt;
 	fp = fh * xt;
+
+	fc = MHz(425);
 
 	num_samples = length(iq_samples)
 	num_frames = fv * num_samples / fs;
@@ -539,11 +541,9 @@ let
 
 	fr = 2 * fp;
 
-	new_num_samples = floor(Int, fr / fs * num_samples);
 	z_resampled = resample(z, fr/fs);
-	if (length(z_resampled) > new_num_samples)
-		z_resampled = z_resampled[1:new_num_samples]; # TODO replace
-	end
+	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
+	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
 	
 	samples_per_line = round(Int, fr/fh);
 	samples_per_pixel = round(Int, fr/fp);
@@ -556,21 +556,13 @@ let
 
 	first_frame = z_adjusted[1:samples_per_frame];
 
-	fu = fp * 0.865;
-	phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
-	first_frame = first_frame .* phasor;
+	# fu = fp * 0.865; # centered on the spectral peak near -fp on the spectrogram
+	# # fu = fp * 0.5; # completely random
+	# # fu = -0.135 * fp; # centered on spectral peak a short ways off 0Hz
+	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
 
-	# win_size = 1000;
-	# xs, ys, zs = create_spectrogram(first_frame, fr, win_size);
-
-	# # crop
-	# win_size_half = floor(Int, win_size / 2);
-	# crop_idx = round(Int, fp * 0.02 / (fr/2) * win_size_half);
-	# ys = ys[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx];
-	# zs = zs[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx, :];
-
-	# zs = 20 * log10.(zs / findmax(zs)[1]); # log scale
-	# heatmap(xs, ys, zs; xlabel="time [s]", ylabel="frequency [Hz]");
+	# TODO try doing spectrogram on non-resampled IQ samples
+	# TODO do I need to be looking in other files?
 	
 	# # fu = 10000; # TODO I think I'm actually increasing the rate of periodic phase change, but it kinda makes it look like rgb pixels?
 	# # dbg(fh);
@@ -582,14 +574,26 @@ let
 	# fu = 40*fp - fc;
 	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
 
-	# first_frame = first_frame .* phasor;
-	# # average_img = zeros(samples_per_frame);
-	# # for i=1:floor(Int,num_frames_adjusted)
-	# # 	average_img = average_img .+ abs.(z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)]);
-	# # end
+	# TODO why are these inverses of one another?
+	# fu = 17*fp - fc;
+	fu = 16*fp - fc;
+	phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame)));
+
+	first_frame = first_frame .* phasor;
+	
+	# win_size = 2000;
+	# xs, ys, zs = create_spectrogram(first_frame, fr, win_size);
+
+	# # crop
+	# win_size_half = floor(Int, win_size / 2);
+	# crop_idx = round(Int, fp * 0.02 / (fr/2) * win_size_half);
+	# ys = ys[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx];
+	# zs = zs[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx, :];
+
+	# zs = 20 * log10.(zs / findmax(zs)[1]); # log scale
+	# heatmap(xs, ys, zs; xlabel="time [s]", ylabel="frequency [Hz]");
 	
 	complex_img = reshape(first_frame, (samples_per_line, :))';
-	# plot_image(abs.(complex_img); aspectratio=fr/fp);
 
 	# RED-GREEN version
 	# r = real.(complex_img);
@@ -608,14 +612,6 @@ let
 	v = v / findmax(v)[1];
 
 	imresize(colorview(RGB, convert(Matrix{RGB{Float64}}, HSV.(h, ones(size(h)), v))), (yt, xt));
-
-	# # alternative HSV version
-	# hsv_img = ones((3, size(h)[1], size(h)[2]));
-	# hsv_img[1, :, :] .= h; hsv_img[3, :, :] .= v;
-	# hsv_img = reinterpret(HSV{Float64}, hsv_img);
-	# rgb_img = convert(Array{RGB{Float64}}, hsv_img);
-
-	# imresize(reshape(rgb_img, size(h)), (yt, xt));
 end
 
 # ╔═╡ 61feb114-0754-4d6e-97e4-b331cbc618b7
@@ -624,8 +620,74 @@ let
 	fh = fv * yt;
 	fp = fh * xt;
 
+	num_samples = length(iq_samples)
+	num_frames = fv * num_samples / fs;
+
+	# num_frames = 8;
+	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
+	z = iq_samples;#[1:num_samples]
 	
-	dbg(fp);
+	samples_per_line = round(Int, fs/fh);
+	samples_per_pixel = round(Int, fs/fp);
+	samples_per_frame = round(Int, fs/fv);
+	
+	# TODO start_idx inference??
+	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
+	z_adjusted = z[start_idx:end];
+	num_frames_adjusted = fv * length(z_adjusted) / fs;
+
+	z_segment = z_adjusted[1:samples_per_frame*2];
+
+	# fu = fp * 0.865; # centered on the spectral peak near -fp on the spectrogram
+	fu = 0; # completely random
+	# fu = -0.135 * fp; # centered on spectral peak a short ways off 0Hz
+	phasor = cis.(2π * fu / fs .* collect(1:length(z_segment)));
+
+	# TODO try doing spectrogram on non-resampled IQ samples
+	# TODO do I need to be looking in other files?
+
+	z_segment = z_segment .* phasor;
+	
+	win_size = 2000;
+	xs, ys, zs = create_spectrogram(z_segment, fs, win_size);
+
+	# # crop
+	# win_size_half = floor(Int, win_size / 2);
+	# crop_idx = round(Int, fp * 0.02 / (fs/2) * win_size_half);
+	# ys = ys[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx];
+	# zs = zs[win_size_half+1-crop_idx:end-win_size_half+1+crop_idx, :];
+
+	# zs = 20 * log10.(zs / findmax(zs)[1]); # log scale
+	heatmap(xs, ys, zs; xlabel="time [s]", ylabel="frequency [Hz]");
+end
+
+# ╔═╡ 14cc9590-29d8-4ba7-8d73-5f01166b5eb7
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+
+	fc = MHz(425);
+
+	# TODO I now think you should have the minus sign in the phasor (i.e. freq = -fu)
+	fu1 = round(Int, 0.135 * fp);
+	fu2 = round(Int, -0.865 * fp);
+	
+	dbg(17*round(Int, fp));
+	dbg(fc + fu1);
+
+	dbg(16*round(Int, fp));
+	dbg(fc + fu2);
+
+	dbg(fu1);
+	dbg(round(Int, 17*fp - fc));
+
+	dbg(fu2);
+	dbg(round(Int, 16*fp - fc));
+
+	# TODO ok so it is as they say:
+	# 1. try using these calculated values of fu1/fu2 to display an image
+	# 2. try to understand why there are two values (assuming they have the same effect, why?)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2205,5 +2267,6 @@ version = "1.4.1+0"
 # ╠═76131b38-6692-4793-939f-d6cc162c232d
 # ╠═554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 # ╠═61feb114-0754-4d6e-97e4-b331cbc618b7
+# ╠═14cc9590-29d8-4ba7-8d73-5f01166b5eb7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
