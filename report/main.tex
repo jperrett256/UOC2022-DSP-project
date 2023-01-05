@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
 \usepackage{a4wide,parskip,underscore,xspace}
+\usepackage{minted}
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
@@ -28,11 +29,25 @@ For the mini-project, I opted for the first option: ``HDMI video cable eavesdrop
 
 \subsection*{Resampling}
 
-Mention you chose $fr = 2 * f_p$ because Nyquist.
+To display an image, the data needed resampling to some frequency $f_r$ that was a multiple of $f_p$ (to have an integer number of samples per line). I chose $fr = 2 * f_p$, under the assumption that the highest frequencies in the data that were worth preserving were $f_p$ (and using the Nyquist criterion). \TODO try again with $f_r = f_p$, and make the effort to bandpass filter it
 
 I initially tried performing perfect sinc interpolation, which worked fine for a test input, but took far too long on the IQ data (even for just a couple of frames).
 
 % TODO show perfect sinc interpolation code
+\begin{minted}{julia}
+    function change_fs(old_len, old_ys, old_fs :: Int, new_fs :: Int)
+        new_len = floor(Int, old_len * new_fs/old_fs);
+        new_xs = collect(0:new_len-1) / new_fs;
+
+        new_ys = zeros(new_len)
+        for i=0:old_len-1
+          new_ys += old_ys[i+1] * sinc.(old_fs * (new_xs .- (i / old_fs)));
+        end
+
+        return new_len, new_xs, new_ys
+    end;
+\end{minted}
+
 
 After looking for more computationally-feasible approaches to resampling, I found a resource that implied that changing ``the sampling rate by a rational factor'' required interpolating and then decimating \cite{dspguru-resampling}. If the rational factor has a very large numerator, this process can require a great deal of memory. To mitigate this, the process can be divided into multiple stages, by splitting the factor into a series of smaller factors with smaller numerators and denominators \cite{dspguru-resampling}. This seemed surprisingly complicated for such a straightforward operation, but it appears (from reading the source code) that the Julia DSP library uses this method exactly (\TODO cite source). \TODO details - \code{resample} function I think? By default uses a Kaiser filter
 
@@ -65,7 +80,9 @@ Show various graphs
 
 \section*{TODO}
 
-Show averaged picture
+Show averaged picture.
+
+The RMS for the averaged image without phase unrotation was $3.86 \times 10^{-6}$, with phase unrotation it was $3.78 \times 10^{-5}$. \TODO explain why
 
 \section*{Conclusion}
 

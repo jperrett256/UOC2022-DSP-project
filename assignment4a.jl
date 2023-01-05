@@ -539,6 +539,8 @@ let
 	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
 	z = iq_samples;#[1:num_samples]
 
+	# TODO try unrotating before resampling!
+	
 	fr = 2 * fp;
 
 	z_resampled = resample(z, fr/fs);
@@ -577,7 +579,9 @@ let
 	# TODO why are these inverses of one another?
 	# fu = 17*fp - fc;
 	fu = 16*fp - fc;
+	# TODO why does fp - fc work??
 	phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame)));
+	# TODO what is there to automate here? Is the concern that fc might be off?
 
 	first_frame = first_frame .* phasor;
 	
@@ -688,6 +692,111 @@ let
 	# TODO ok so it is as they say:
 	# 1. try using these calculated values of fu1/fu2 to display an image
 	# 2. try to understand why there are two values (assuming they have the same effect, why?)
+end
+
+# ╔═╡ 0c97bf74-a2ef-4759-a620-5a6ea3a94308
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+
+	fc = MHz(425);
+
+	num_samples = length(iq_samples)
+	num_frames = fv * num_samples / fs;
+
+	# num_frames = 8;
+	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
+	z = iq_samples;#[1:num_samples]
+
+	fr = 2 * fp;
+
+	z_resampled = resample(z, fr/fs);
+	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
+	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
+	
+	samples_per_line = round(Int, fr/fh);
+	samples_per_pixel = round(Int, fr/fp);
+	samples_per_frame = round(Int, fr/fv);
+	
+	# TODO start_idx inference??
+	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
+	z_adjusted = z_resampled[start_idx:end];
+	num_frames_adjusted = fv * length(z_adjusted) / fr;
+
+	# TODO why are these inverses of one another?
+	fu = 17*fp - fc;
+	# fu = 16*fp - fc;
+	# TODO why does fp - fc work?? Could it be because we resampled to fr = 2*fp?
+	# TODO try applying phasor to original iq samples, then resampling
+	# TODO (is the resampling part of amplitude demodulation?)
+	phasor = cis.(-2π * fu / fr .* collect(1:length(z_adjusted)));
+	# TODO what is there to automate here? Is the concern that fc might be off?
+
+	# z_adjusted = z_adjusted .* phasor; # commenting out this line destroys the image
+	
+	average_img = zeros(ComplexF64, samples_per_frame);
+	for i=1:floor(Int,num_frames_adjusted)
+		average_img = average_img .+ z_adjusted[round(Int, fr/fv*(i-1)+1):round(Int, fr/fv*i)];
+	end
+
+	average_img /= floor(Int,num_frames_adjusted);
+	
+	println("RMS: ", sqrt(1 / length(average_img) * sum(abs2.(average_img))));
+	
+	complex_img = reshape(average_img, (samples_per_line, :))';
+
+	# RED-GREEN version
+	# r = real.(complex_img);
+	# g = imag.(complex_img);
+	# @assert size(r) == size(g);
+	
+	# # normalise
+	# r = r / findmax(r)[1];
+	# g = g / findmax(g)[1];
+
+	# imresize(colorview(RGB, r, g, zeros(size(r))), (yt, xt));
+
+	# HSV version
+	h = rad2deg.(angle.(complex_img));
+	v = abs.(complex_img);
+	v = v / findmax(v)[1];
+
+	imresize(colorview(RGB, convert(Matrix{RGB{Float64}}, HSV.(h, ones(size(h)), v))), (yt, xt));
+end
+
+# ╔═╡ aedb9a75-1d68-4aab-8092-1e73f8ba5e71
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+
+	fc = MHz(425);
+	fu = 17*fp - fc;
+	# fu = 16*fp - fc;
+
+	fr = 2 * fp;
+
+	z_resampled = resample(z, fr/fs);
+	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
+	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
+
+	z = iq_samples;
+	
+	rms_default = ;
+	# rms_shifted = 1 / length
+
+	z_unrotated = z_resampled .* cis.(-2π * fu / fs * collect(1:length(z_resampled)));
+
+	rms_unrotated = sqrt(1 / length(z_unrotated) * sum(abs2.(z_unrotated)));
+
+	println(rms_default); # I expected this to be close to zero (and it is)
+	println(rms_unrotated); # TODO I did not expect this to be close to zero
+	# TODO maybe its because I did the unrotation before resampling?
+	# TODO must try applying the phasor before resampling in the above block
+
+	# TODO you're an idiot - you need to do the averaging first
+	# (also double check you've computing RMS correctly for a complex sequence)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2268,5 +2377,7 @@ version = "1.4.1+0"
 # ╠═554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 # ╠═61feb114-0754-4d6e-97e4-b331cbc618b7
 # ╠═14cc9590-29d8-4ba7-8d73-5f01166b5eb7
+# ╠═0c97bf74-a2ef-4759-a620-5a6ea3a94308
+# ╠═aedb9a75-1d68-4aab-8092-1e73f8ba5e71
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
