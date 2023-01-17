@@ -205,20 +205,20 @@ The code below tries to find the crosscorrelation between the first and last fra
         ["previous estimate", "hand tuned"]), dpi=300);
 \end{minted}
 
-The above results in the graph shown at \ref{fig:xcorr-fv}. This technique allows us to get an estimate that is better than my hand tuned one.
+The above results in the graph shown in Figure \ref{fig:xcorr-fv}. This technique allows us to get an estimate that is better than my hand tuned one.
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.95\linewidth]{images/autocor_fv_step2.png}
-    \caption{The ``hand tuned'' label refers to the manual estimate, and the ``previous estimate'' label refers to the previous $f_s/f_v$ estimate (from performing autocorrelation). By using the peak on the graph, we can obtain an estimate even better than our original hand tuned one!}
+    \includegraphics[width=0.92\linewidth]{images/autocor_fv_step2.png}
+    \caption{This shows the crosscorrelation between the first and (roughly) last frame in the image. The ``hand tuned'' label refers to the manual estimate, and the ``previous estimate'' label refers to the previous $f_s/f_v$ estimate (from performing autocorrelation). By using the peak on the graph, we can obtain an estimate even better than our original hand tuned one!}
     \label{fig:xcorr-fv}
 \end{figure}
 
-The same can be done with $f_h$, using our previous $f_h$ estimate (from performing autocorrelation within a frame). This results in the graph shown at \ref{fig:xcorr-fh}. While this gets us a much better estimate than before (as indicated by it being closer to the hand tuned estimate), using it to resample and display the image shows that it is still a bit off.
+The same can be done with $f_h$, using our previous $f_h$ estimate (from performing autocorrelation within a frame). This results in the graph shown in Figure \ref{fig:xcorr-fh}. While this gets us a much better estimate than before (as indicated by it being closer to the hand tuned estimate), using it to resample and display the image shows that it is still a bit off.
 \begin{figure}
     \centering
-    \includegraphics[width=0.95\linewidth]{images/autocor_fh_step2.png}
-    \caption{The ``hand tuned'' label refers to the manual estimate, and the ``previous estimate'' label refers to the previous $f_s/f_h$ estimate (from performing autocorrelation).}
+    \includegraphics[width=0.92\linewidth]{images/autocor_fh_step2.png}
+    \caption{This shows the crosscorrelation between rows that are roughly 1000 rows apart. The ``hand tuned'' label refers to the manual estimate, and the ``previous estimate'' label refers to the previous $f_s/f_h$ estimate (from performing autocorrelation).}
     \label{fig:xcorr-fh}
 \end{figure}
 
