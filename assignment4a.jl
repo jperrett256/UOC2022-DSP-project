@@ -117,15 +117,31 @@ begin
 		return fh, fv;
 	end;
 
-	iq_samples = let 
-		scene_fn = "scene3-640x480-60-425M-64M-40M.dat";
-		num_samples = div(filesize(scene_fn), sizeof(ComplexF32));
+	function read_samples(filename)
+		num_samples = div(filesize(filename), sizeof(ComplexF32));
 		z = Vector{ComplexF32}(undef, num_samples);
-		read!(scene_fn, z);
+		read!(filename, z);
 
-		z; # export
-	end;
+		return z;
+	end
+
+	iq_samples = read_samples("scene3-640x480-60-425M-64M-40M.dat");
 end;
+
+# ╔═╡ 9949eb60-dcd5-4899-8646-d70ced634616
+begin
+	# iq_samples_225 = read_samples("scene3-640x480-60-225M-64M-40M.dat");
+	# iq_samples_250 = read_samples("scene3-640x480-60-250M-64M-40M.dat");
+	# iq_samples_275 = read_samples("scene3-640x480-60-275M-64M-40M.dat");
+	# iq_samples_300 = read_samples("scene3-640x480-60-300M-64M-40M.dat");
+	iq_samples_325 = read_samples("scene3-640x480-60-325M-64M-40M.dat");
+	iq_samples_350 = read_samples("scene3-640x480-60-350M-64M-40M.dat");
+	iq_samples_375 = read_samples("scene3-640x480-60-375M-64M-40M.dat");
+	iq_samples_400 = read_samples("scene3-640x480-60-400M-64M-40M.dat");
+	iq_samples_425 = iq_samples;
+	iq_samples_450 = read_samples("scene3-640x480-60-450M-64M-40M.dat");
+	iq_samples_475 = read_samples("scene3-640x480-60-475M-64M-40M.dat");
+end
 
 # ╔═╡ 6f35e0fc-cdbe-44bb-9bce-adb9734083eb
 let	
@@ -385,7 +401,7 @@ begin
 		xs2_fh, xcorr_fh, xcorr_factor, fh_est, fh_est2;
 	end
 
-	plot(xs2_fh, xcorr_fh; label="autocorrelation (fv)", xticks=([fs/fh_est * xcorr_fh_factor, fs/fh_ref * xcorr_fh_factor], ["previous estimate", "hand tuned"]), dpi=300);
+	plot(xs2_fh, xcorr_fh; label="autocorrelation (fh)", xticks=([fs/fh_est * xcorr_fh_factor, fs/fh_ref * xcorr_fh_factor], ["previous estimate", "hand tuned"]), dpi=300);
 end
 
 # ╔═╡ 5da582f8-b6b5-48dc-b778-083ab83d38f2
@@ -530,21 +546,26 @@ let
 	fh = fv * yt;
 	fp = fh * xt;
 
-	fc = MHz(425);
+	# fc = MHz(425);
+	# z = iq_samples;
+	# # fu = 17*fp - fc;
+	# fu = 16*fp - fc;
+	
+	fc = MHz(400);
+	z = iq_samples_400;
+	fu = 16*fp - fc;
+	
+	
+	# TODO get one image, then just move on
+	# TODO unless... might be sth cool 10*fp further down
 
-	num_samples = length(iq_samples)
-	num_frames = fv * num_samples / fs;
-
-	# num_frames = 8;
-	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
-	z = iq_samples;#[1:num_samples]
-
-	# TODO try unrotating before resampling!
+	phasor = cis.(-2π * fu / fs .* collect(1:length(z)));
+	z = z .* phasor;
 	
 	fr = 2 * fp;
 
 	z_resampled = resample(z, fr/fs);
-	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
+	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * length(z)));
 	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
 	
 	samples_per_line = round(Int, fr/fh);
@@ -552,38 +573,21 @@ let
 	samples_per_frame = round(Int, fr/fv);
 	
 	# TODO start_idx inference??
-	start_idx = 260 * samples_per_line + 450 * samples_per_pixel;
+	# start_idx = 260 * samples_per_line + 450 * samples_per_pixel; # 425MHz
+	start_idx = 2 * samples_per_line + 54 * samples_per_pixel; # 400MHz
+	
 	z_adjusted = z_resampled[start_idx:end];
 	num_frames_adjusted = fv * length(z_adjusted) / fr;
 
 	first_frame = z_adjusted[1:samples_per_frame];
 
-	# fu = fp * 0.865; # centered on the spectral peak near -fp on the spectrogram
-	# # fu = fp * 0.5; # completely random
-	# # fu = -0.135 * fp; # centered on spectral peak a short ways off 0Hz
-	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
-
-	# TODO try doing spectrogram on non-resampled IQ samples
-	# TODO do I need to be looking in other files?
-	
-	# # fu = 10000; # TODO I think I'm actually increasing the rate of periodic phase change, but it kinda makes it look like rgb pixels?
-	# # dbg(fh);
-	# # phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame))); # divide by fr or no?? should there be a negative sign?
-
-	# # fu = fh / 90; # TODO what should this be
-	# # fu = 360;
-	# fc = MHz(425);
-	# fu = 40*fp - fc;
-	# phasor = cis.(2π * fu / fr .* collect(1:length(first_frame)));
-
 	# TODO why are these inverses of one another?
-	# fu = 17*fp - fc;
-	fu = 16*fp - fc;
-	# TODO why does fp - fc work??
-	phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame)));
-	# TODO what is there to automate here? Is the concern that fc might be off?
-
-	first_frame = first_frame .* phasor;
+	# # fu = 17*fp - fc;
+	# fu = 16*fp - fc;
+	# # TODO why does fp - fc work??
+	# phasor = cis.(-2π * fu / fr .* collect(1:length(first_frame)));
+	# # TODO what is there to automate here? Is the concern that fc might be off?
+	# first_frame = first_frame .* phasor;
 	
 	# win_size = 2000;
 	# xs, ys, zs = create_spectrogram(first_frame, fr, win_size);
@@ -627,9 +631,7 @@ let
 	num_samples = length(iq_samples)
 	num_frames = fv * num_samples / fs;
 
-	# num_frames = 8;
-	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
-	z = iq_samples;#[1:num_samples]
+	z = iq_samples_400;
 	
 	samples_per_line = round(Int, fs/fh);
 	samples_per_pixel = round(Int, fs/fp);
@@ -663,6 +665,15 @@ let
 
 	# zs = 20 * log10.(zs / findmax(zs)[1]); # log scale
 	heatmap(xs, ys, zs; xlabel="time [s]", ylabel="frequency [Hz]");
+end
+
+# ╔═╡ a4909a68-50e7-41f8-a1f7-96e07fda4d6b
+let
+	fv = fv_est2;
+	fh = fv * yt;
+	fp = fh * xt;
+	dbg(MHz(225) / fp);
+	dbg(20 * fp);
 end
 
 # ╔═╡ 14cc9590-29d8-4ba7-8d73-5f01166b5eb7
@@ -701,18 +712,23 @@ let
 	fp = fh * xt;
 
 	fc = MHz(425);
+	z = iq_samples; # TODO try the other files!
 
-	num_samples = length(iq_samples)
-	num_frames = fv * num_samples / fs;
+	# fu = 17*fp - fc;
+	fu = 16*fp - fc; # TODO why does this look better?
 
-	# num_frames = 8;
-	# num_samples = round(Int, num_samples_total * num_frames / num_frames_total); 
-	z = iq_samples;#[1:num_samples]
+	# fc = MHz(400); # TODO what
+	# z = iq_samples_400;
+	# fu = 15*fp - fc;
+	
+	phasor = cis.(-2π * fu / fs .* collect(1:length(z)));
+	z = z .* phasor;
+	# z = z .* cis.(π);
 
 	fr = 2 * fp;
 
 	z_resampled = resample(z, fr/fs);
-	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
+	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * length(z)));
 	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
 	
 	samples_per_line = round(Int, fr/fh);
@@ -724,16 +740,14 @@ let
 	z_adjusted = z_resampled[start_idx:end];
 	num_frames_adjusted = fv * length(z_adjusted) / fr;
 
-	# TODO why are these inverses of one another?
-	fu = 17*fp - fc;
+	# # # TODO why are these inverses of one another?
+	# # fu = 17*fp - fc;
 	# fu = 16*fp - fc;
-	# TODO why does fp - fc work?? Could it be because we resampled to fr = 2*fp?
-	# TODO try applying phasor to original iq samples, then resampling
-	# TODO (is the resampling part of amplitude demodulation?)
-	phasor = cis.(-2π * fu / fr .* collect(1:length(z_adjusted)));
-	# TODO what is there to automate here? Is the concern that fc might be off?
-
+	# # NOTE even fp - fc works: likely because we resampled to fr = 2*fp
+	# # TODO (is the resampling part of amplitude demodulation?)
+	# phasor = cis.(-2π * fu / fr .* collect(1:length(z_adjusted)));
 	# z_adjusted = z_adjusted .* phasor; # commenting out this line destroys the image
+	# # TODO what is there to automate here? Is the concern that fc might be off?
 	
 	average_img = zeros(ComplexF64, samples_per_frame);
 	for i=1:floor(Int,num_frames_adjusted)
@@ -765,38 +779,30 @@ let
 	imresize(colorview(RGB, convert(Matrix{RGB{Float64}}, HSV.(h, ones(size(h)), v))), (yt, xt));
 end
 
-# ╔═╡ aedb9a75-1d68-4aab-8092-1e73f8ba5e71
+# ╔═╡ 5973cdc8-ba45-444d-99cf-7edc198d9a06
 let
 	fv = fv_est2;
 	fh = fv * yt;
 	fp = fh * xt;
 
 	fc = MHz(425);
-	fu = 17*fp - fc;
-	# fu = 16*fp - fc;
 
-	fr = 2 * fp;
+	dbg(fc / fp);
+end
 
-	z_resampled = resample(z, fr/fs);
-	new_num_samples = min(length(z_resampled), floor(Int, fr / fs * num_samples));
-	z_resampled = z_resampled[1:new_num_samples]; # TODO replace
-
-	z = iq_samples;
+# ╔═╡ 2e45a071-4b54-4e8f-91b3-86470cbd4e5c
+let
+	# So clearly what we've been looking at in the grayscale/HSV images is the 10*fp RGB data
+	# TODO why were we adjusting the unrotation phasor so that the peaks from the _emissions of the pixel clock wire_ are at 0Hz? (Maybe the reason has nothing to do with the pixel clock wire, its just conveniently there at every multiple of fp and can be used for calibration.) The real question - why did the unrotation thing work? (Maybe refresh yourself on AM/FM modulation/demodulation.)
 	
-	rms_default = ;
-	# rms_shifted = 1 / length
-
-	z_unrotated = z_resampled .* cis.(-2π * fu / fs * collect(1:length(z_resampled)));
-
-	rms_unrotated = sqrt(1 / length(z_unrotated) * sum(abs2.(z_unrotated)));
-
-	println(rms_default); # I expected this to be close to zero (and it is)
-	println(rms_unrotated); # TODO I did not expect this to be close to zero
-	# TODO maybe its because I did the unrotation before resampling?
-	# TODO must try applying the phasor before resampling in the above block
-
-	# TODO you're an idiot - you need to do the averaging first
-	# (also double check you've computing RMS correctly for a complex sequence)
+	# stiching 4x 40MHz IQ recordings into a single 125MHz/160MHz file:
+	# you would use cross correlation to make line up the files
+		# TODO maybe check the grayscale image output for the non-425MHz recordings
+	# you would then resample them, shift them up by (0:3)*40MHz
+	# TODO idk where the filtering would be involved
+		# maybe when shifting, because the negative frequencies would also get shifted right?
+	# just use spectrograms to check at each stage that things look about right
+	# TODO update, the files are 25MHz apart, have bandwidths of 40MHz, and sample rates of 64MHz - maybe combine 5 and just take 25MHz from each?
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2360,6 +2366,7 @@ version = "1.4.1+0"
 # ╠═76dc0cad-7471-4d12-b20b-55af2a1e2782
 # ╠═d36924f7-9d36-4cb9-802a-2d45562d891e
 # ╠═b43b3597-f192-4ef1-be24-5bdc64acc630
+# ╠═9949eb60-dcd5-4899-8646-d70ced634616
 # ╠═6f35e0fc-cdbe-44bb-9bce-adb9734083eb
 # ╠═6c68f96f-0e9a-4654-a46e-bac19cefbc3e
 # ╠═8b1bc432-0ea8-4af3-be15-bc7cdf81a364
@@ -2376,8 +2383,10 @@ version = "1.4.1+0"
 # ╠═76131b38-6692-4793-939f-d6cc162c232d
 # ╠═554d4b4c-d7c6-415c-9eda-57d6c9641cb1
 # ╠═61feb114-0754-4d6e-97e4-b331cbc618b7
+# ╠═a4909a68-50e7-41f8-a1f7-96e07fda4d6b
 # ╠═14cc9590-29d8-4ba7-8d73-5f01166b5eb7
 # ╠═0c97bf74-a2ef-4759-a620-5a6ea3a94308
-# ╠═aedb9a75-1d68-4aab-8092-1e73f8ba5e71
+# ╠═5973cdc8-ba45-444d-99cf-7edc198d9a06
+# ╠═2e45a071-4b54-4e8f-91b3-86470cbd4e5c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
