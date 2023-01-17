@@ -200,7 +200,9 @@ The code below tries to find the crosscorrelation between the first and last fra
     println("Second automatic estimate: ", fv_est2);
     println("Manually tuned estimate: ", fv_ref);
 
-    plot(xs2_fv, xcorr_fv; label="autocorrelation (fv)", xticks=([fs/fv_est * xcorr_fv_factor, fs/fv_ref * xcorr_fv_factor], ["previous estimate", "hand tuned"]), dpi=300);
+    plot(xs2_fv, xcorr_fv; label="autocorrelation (fv)",
+        xticks=([fs/fv_est * xcorr_fv_factor, fs/fv_ref * xcorr_fv_factor],
+        ["previous estimate", "hand tuned"]), dpi=300);
 \end{minted}
 
 The above results in the graph shown at \ref{fig:xcorr-fv}. This technique allows us to get an estimate that is better than my hand tuned one.
