@@ -299,8 +299,8 @@ Figure \ref{fig:periodic-phase-spectrogram} shows spectral peaks at $16 \cdot f_
 
 \begin{figure}
     \centering
-    \includegraphics[width=\linewidth]{images/periodic_phase_spectrogram.png}
-    \caption{Spectrogram for the $f_c = \textnormal{400 MHz}$ IQ sample data.}
+    \includegraphics[width=\linewidth]{images/periodic_phase_spectrogram_425.png}
+    \caption{Spectrogram for the $f_c = \textnormal{425 MHz}$ IQ sample data.}
     \label{fig:periodic-phase-spectrogram}
 \end{figure}
 
@@ -313,6 +313,8 @@ Figure \ref{fig:periodic-phase-spectrogram} shows spectral peaks at $16 \cdot f_
 
 Periodic averaging without prior phase unrotation yields no image. The RMS for the average of the complex-valued signal without phase unrotation was $3.86 \times 10^{-6}$, with phase unrotation it was $3.78 \times 10^{-5}$. I expected the RMS without unrotation to be small, as summing many random complex values (pointed in all directions) should approach zero. I expected the RMS with phase unrotation to be larger, but the signal may just be very weak. It is an order of magnitude larger.
 
+It appears to be possible to display images using the other IQ recordings, but the result seems to be increasingly noisy and unclear the further away $f_c$ is from 425 MHz.
+
 \section*{Stitching Recordings Together}
 I ran out of time for the stitching of 40 MHz recordings, so I will just briefly describe how I would hypothetically do it.
 
@@ -322,7 +324,7 @@ Since all three color channels are transmitted simultaneously, it does not seem 
 
 \section*{Conclusion}
 
-This project was an exciting opportunity to analyse some HDMI signals, and it was very satisfying to successfully reconstruct an HSV image from the IQ data.
+This project was an exciting opportunity to examine HDMI signals, and it was very satisfying to successfully reconstruct HSV images from the IQ data.
 
 \newpage
 \appendix

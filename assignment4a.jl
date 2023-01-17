@@ -631,7 +631,8 @@ let
 	num_samples = length(iq_samples)
 	num_frames = fv * num_samples / fs;
 
-	z = iq_samples_400;
+	z = iq_samples_425;
+	# z = iq_samples_400;
 	
 	samples_per_line = round(Int, fs/fh);
 	samples_per_pixel = round(Int, fs/fp);
