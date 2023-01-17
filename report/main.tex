@@ -27,6 +27,10 @@
 
 For the mini-project, I opted for the first option: ``HDMI video cable eavesdropping''. The steps provided are quite clear, and so I will describe my results more or less in the order that corresponds to the instructions given.
 
+My full work is available here (to be made public shortly after the submission deadline): \\ https://github.com/jperrett256/UOC2022-DSP-project
+
+
+
 \section*{Resampling}
 
 To display an image, the data needed resampling to some frequency $f_r$ that was a multiple of $f_p$ (to have an integer number of samples per line). I found $fr = f_p$ to result in a poor quality image, while $fr = 2 * f_p$ (or above) worked fine. This implies that highest frequencies in the data were around $f_p$ (using the Nyquist criterion).
@@ -109,7 +113,7 @@ We can use this fact to estimate $f_h$ or $f_v$, which will in turn give us an e
     fh_std, fv_std = get_freqs(fp_std);
 
     # manually tuned values
-    fp_ref = round(Int, fp_std * 1.000997); # TODO +-0.5% range
+    fp_ref = round(Int, fp_std * 1.000997); # +-0.5% range
     fh_ref, fv_ref = get_freqs(fp_ref);
 
     # upper and lower bounds
